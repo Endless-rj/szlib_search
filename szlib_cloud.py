@@ -271,6 +271,13 @@ def run_search(book_name, task):
         task.send_progress("search", f"正在搜索《{book_name}》...", 10)
         books, num_found = search_books_api(book_name)
 
+    except Exception as e:
+        if not books:
+            task.send_error(f"搜索出错: {str(e)}")
+        else:
+            print("xxxxxx")
+
+    if true:
         if not books:
             task.send_progress("done", "搜索完成，未找到结果", 100)
             task.send_done({"total": 0, "book_count": 0, "libraries": []})
@@ -317,8 +324,8 @@ def run_search(book_name, task):
             "libraries": grouped,
         })
 
-    except Exception as e:
-        task.send_error(f"搜索出错: {str(e)}")
+#    except Exception as e:
+#        task.send_error(f"搜索出错: {str(e)}")
 
 
 # ============================================================
