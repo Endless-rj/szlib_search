@@ -65,6 +65,8 @@ HEADERS_TEMPLATE = {
 MAX_RETRIES = 3
 RETRY_DELAYS = [2, 5, 10]  # 每次重试的等待秒数
 REQUEST_TIMEOUT = 30  # 单次请求超时（秒），有代理后不需要60秒
+HOLDINGS_TIMEOUT = 15  # 馆藏请求超时（秒），比搜索短
+HOLDINGS_RETRIES = 1  # 馆藏请求重试次数，少一些以加快速度
 
 
 # ============================================================
@@ -96,13 +98,16 @@ def http_get(url, timeout=REQUEST_TIMEOUT, max_retries=MAX_RETRIES):
                     return json.loads(data.decode("utf-8"))
         except urllib.error.HTTPError as e:
             print(f"  HTTP {e.code} 错误 (尝试 {attempt+1}/{max_retries}): {e.reason}")
-            if e.code in (403, 429):
-                # 被禁止或限流，等更久再试
+            if e.code in (403, 429, 522, 521):
+                # 被禁止/限流/Cloudflare超时，等更久再试
                 if attempt < max_retries - 1:
                     wait = RETRY_DELAYS[attempt] * 2
                     print(f"  等待 {wait} 秒后重试...")
                     time.sleep(wait)
                     continue
+                else:
+                    # 最后一次也失败了，对于 522/521 返回 None 而不是抛异常
+                    return None
         except urllib.error.URLError as e:
             print(f"  网络错误 (尝试 {attempt+1}/{max_retries}): {e.reason}")
         except Exception as e:
@@ -146,7 +151,8 @@ def search_books_api(keyword):
 
 def fetch_holdings(tablename, recordid):
     url = f"{HOLDING_API}?metaTable={tablename}&metaId={recordid}&library=all&client_id=t1"
-    api_data = http_get(url)
+    # 馆藏请求用更短的超时和更少的重试，避免单个失败的请求拖慢整个搜索
+    api_data = http_get(url, timeout=HOLDINGS_TIMEOUT, max_retries=HOLDINGS_RETRIES)
     if not api_data:
         return []
     return parse_holdings(api_data)
@@ -264,6 +270,7 @@ def run_search(book_name, task):
         task.send_progress("count", f"找到 {num_found} 条结果（本次显示{total}条），正在获取馆藏...", 20)
 
         all_holdings = []
+        failed_count = 0
         for i, book in enumerate(books):
             # u_title 包含完整标题（如"红楼梦/(清)曹雪芹著"），ptitle 是短标题可能截断
             title = book.get("u_title", book.get("ptitle", book.get("title", f"第{i+1}项")))
@@ -275,14 +282,25 @@ def run_search(book_name, task):
 
             holdings = []
             if tablename and recordid:
-                holdings = fetch_holdings(tablename, recordid)
+                try:
+                    holdings = fetch_holdings(tablename, recordid)
+                except Exception as e:
+                    print(f"  获取《{title}》馆藏异常: {e}")
+                    holdings = []
+                    failed_count += 1
 
+            # 即使馆藏获取失败，也保留书名信息
             all_holdings.append({"title": title, "holdings": holdings})
 
         task.send_progress("group", "正在整理结果...", 95)
         grouped = group_by_library(all_holdings)
 
-        task.send_progress("done", "搜索完成！", 100)
+        # 如果有部分失败，在完成消息中提示
+        done_msg = "搜索完成！"
+        if failed_count > 0:
+            done_msg = f"搜索完成（{failed_count}本馆藏获取失败，已跳过）"
+
+        task.send_progress("done", done_msg, 100)
         task.send_done({
             "total": num_found if num_found else total,
             "book_count": total,
