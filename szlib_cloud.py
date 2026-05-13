@@ -307,7 +307,7 @@ def run_search(book_name, task):
 
     except Exception as e:
         if not books:
-            task.send_error(f"搜索出错: {str(e)}")
+            print("222222") # task.send_error(f"搜索出错: {str(e)}")
         else:
             print("xxxxxx")
 
