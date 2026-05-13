@@ -101,7 +101,7 @@ def http_get(url, timeout=REQUEST_TIMEOUT, max_retries=MAX_RETRIES):
             if e.code in (403, 429, 522, 521):
                 # 被禁止/限流/Cloudflare超时，等更久再试
                 if attempt < max_retries - 1:
-                    wait = RETRY_DELAYS[attempt] * 2
+                    wait = 1+attempt #RETRY_DELAYS[attempt] * 2
                     print(f"  等待 {wait} 秒后重试...")
                     time.sleep(wait)
                     continue
@@ -115,7 +115,7 @@ def http_get(url, timeout=REQUEST_TIMEOUT, max_retries=MAX_RETRIES):
 
         # 重试等待
         if attempt < max_retries - 1:
-            wait = RETRY_DELAYS[attempt]
+            wait = 1+attempt #RETRY_DELAYS[attempt]
             print(f"  等待 {wait} 秒后重试...")
             time.sleep(wait)
 
