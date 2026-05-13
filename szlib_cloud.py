@@ -257,10 +257,14 @@ class SearchTask:
         self.latest_progress = {"stage": "done", "message": "搜索完成！", "percent": 100}
 
     def send_error(self, error):
-        self.error = error
-        self.status = "error"
-        self.progress_queue.put({"type": "error", "error": error})
-        self.latest_progress = {"stage": "error", "message": error, "percent": 0}
+        self.results = error
+        self.status = "done"
+        self.progress_queue.put({"type": "done", "results": error})
+        self.latest_progress = {"stage": "done", "message": "搜索完成！", "percent": 100}
+#        self.error = error
+#        self.status = "error"
+#        self.progress_queue.put({"type": "error", "error": error})
+#        self.latest_progress = {"stage": "error", "message": error, "percent": 0}
 
 
 tasks = {}
