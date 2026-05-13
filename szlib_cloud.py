@@ -156,10 +156,15 @@ def search_books_api(keyword):
 def fetch_holdings(tablename, recordid):
     url = f"{HOLDING_API}?metaTable={tablename}&metaId={recordid}&library=all&client_id=t1"
     # 馆藏请求用更短的超时和更少的重试，避免单个失败的请求拖慢整个搜索
-    # api_data = http_get(url, timeout=HOLDINGS_TIMEOUT, max_retries=HOLDINGS_RETRIES)
-    api_data = http_get(url)
+    api_data = http_get(url, timeout=HOLDINGS_TIMEOUT, max_retries=HOLDINGS_RETRIES)
     if not api_data:
-        return []
+        time.sleep(1)
+        api_data = http_get(url, timeout=HOLDINGS_TIMEOUT, max_retries=HOLDINGS_RETRIES)
+        if not api_data:
+            time.sleep(1)
+            api_data = http_get(url, timeout=HOLDINGS_TIMEOUT, max_retries=HOLDINGS_RETRIES)
+            if not api_data:
+                return []
     return parse_holdings(api_data)
 
 
