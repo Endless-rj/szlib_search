@@ -62,8 +62,8 @@ HEADERS_TEMPLATE = {
 }
 
 # 重试配置
-MAX_RETRIES = 3
-RETRY_DELAYS = [2, 5, 10]  # 每次重试的等待秒数
+MAX_RETRIES = 10
+# RETRY_DELAYS = [2, 5, 10]  # 每次重试的等待秒数
 REQUEST_TIMEOUT = 30  # 单次请求超时（秒），有代理后不需要60秒
 HOLDINGS_TIMEOUT = 15  # 馆藏请求超时（秒），比搜索短
 HOLDINGS_RETRIES = 1  # 馆藏请求重试次数，少一些以加快速度
@@ -102,6 +102,8 @@ def http_get(url, timeout=REQUEST_TIMEOUT, max_retries=MAX_RETRIES):
                 # 被禁止/限流/Cloudflare超时，等更久再试
                 if attempt < max_retries - 1:
                     wait = 1+attempt #RETRY_DELAYS[attempt] * 2
+                    if wait > 3 :
+                        wait = 3
                     print(f"  等待 {wait} 秒后重试...")
                     time.sleep(wait)
                     continue
@@ -116,6 +118,8 @@ def http_get(url, timeout=REQUEST_TIMEOUT, max_retries=MAX_RETRIES):
         # 重试等待
         if attempt < max_retries - 1:
             wait = 1+attempt #RETRY_DELAYS[attempt]
+            if wait > 3 :
+                wait = 3
             print(f"  等待 {wait} 秒后重试...")
             time.sleep(wait)
 
