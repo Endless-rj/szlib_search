@@ -27,7 +27,9 @@ app = Flask(__name__)
 # ============================================================
 #  常量
 # ============================================================
-BASE_URL = "https://www.szlib.org.cn"
+# 支持代理：设置环境变量 PROXY_URL 即可通过 Cloudflare Worker 代理访问
+# 本地运行不需要设置，Railway 部署需设置 PROXY_URL
+BASE_URL = os.environ.get("PROXY_URL", "https://www.szlib.org.cn")
 
 SEARCH_API = (
     f"{BASE_URL}/api/opacservice/getQueryResult"
@@ -54,15 +56,15 @@ USER_AGENTS = [
 HEADERS_TEMPLATE = {
     "Accept": "application/json, text/plain, */*",
     "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-    "Accept-Encoding": "gzip, deflate, br",
+    "Accept-Encoding": "identity",
     "Connection": "keep-alive",
-    "Referer": f"{BASE_URL}/opac/searchShow",
+    "Referer": "https://www.szlib.org.cn/opac/searchShow",
 }
 
 # 重试配置
 MAX_RETRIES = 3
 RETRY_DELAYS = [2, 5, 10]  # 每次重试的等待秒数
-REQUEST_TIMEOUT = 60  # 单次请求超时（秒）
+REQUEST_TIMEOUT = 30  # 单次请求超时（秒），有代理后不需要60秒
 
 
 # ============================================================
@@ -620,10 +622,14 @@ def api_status(task_id):
 # ============================================================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
+    proxy = os.environ.get("PROXY_URL", "")
     print()
     print("=" * 50)
-    print("   Shenzhen Library Search (Cloud v2)")
-    print("   With retry + longer timeout + SSL bypass")
+    print("   Shenzhen Library Search (Cloud v3)")
+    if proxy:
+        print(f"   PROXY: {proxy}")
+    else:
+        print("   Direct connection (no proxy)")
     print(f"   http://0.0.0.0:{port}")
     print("=" * 50)
     print()
