@@ -158,10 +158,10 @@ def fetch_holdings(tablename, recordid):
     # 馆藏请求用更短的超时和更少的重试，避免单个失败的请求拖慢整个搜索
     api_data = http_get(url, timeout=HOLDINGS_TIMEOUT, max_retries=HOLDINGS_RETRIES)
     if not api_data:
-        time.sleep(1)
+        print(f"  retry...1")
         api_data = http_get(url, timeout=HOLDINGS_TIMEOUT, max_retries=HOLDINGS_RETRIES)
         if not api_data:
-            time.sleep(1)
+            print(f"  retry...2")
             api_data = http_get(url, timeout=HOLDINGS_TIMEOUT, max_retries=HOLDINGS_RETRIES)
             if not api_data:
                 return []
