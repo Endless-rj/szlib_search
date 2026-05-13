@@ -305,13 +305,6 @@ def run_search(book_name, task):
         task.send_progress("group", "正在整理结果...", 95)
         grouped = group_by_library(all_holdings)
 
-    except Exception as e:
-        if not books:
-            print("222222") # task.send_error(f"搜索出错: {str(e)}")
-        else:
-            print("xxxxxx")
-
-    if true:
         # 如果有部分失败，在完成消息中提示
         done_msg = "搜索完成！"
         if failed_count > 0:
@@ -324,9 +317,22 @@ def run_search(book_name, task):
             "libraries": grouped,
         })
 
-#    except Exception as e:
+    except Exception as e:
 #        task.send_error(f"搜索出错: {str(e)}")
+        task.send_progress("group", "正在整理结果...", 95)
+        grouped = group_by_library(all_holdings)
 
+        # 如果有部分失败，在完成消息中提示
+        done_msg = "搜索完成！"
+        if failed_count > 0:
+            done_msg = f"搜索完成（{failed_count}本馆藏获取失败，已跳过）"
+
+        task.send_progress("done", done_msg, 100)
+        task.send_done({
+            "total": num_found if num_found else total,
+            "book_count": total,
+            "libraries": grouped,
+        })
 
 # ============================================================
 #  内嵌 HTML 模板
