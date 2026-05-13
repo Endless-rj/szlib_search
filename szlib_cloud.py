@@ -65,7 +65,7 @@ HEADERS_TEMPLATE = {
 MAX_RETRIES = 10
 # RETRY_DELAYS = [2, 5, 10]  # 每次重试的等待秒数
 REQUEST_TIMEOUT = 30  # 单次请求超时（秒），有代理后不需要60秒
-HOLDINGS_TIMEOUT = 15  # 馆藏请求超时（秒），比搜索短
+HOLDINGS_TIMEOUT = 5  # 15 馆藏请求超时（秒），比搜索短
 HOLDINGS_RETRIES = 1  # 馆藏请求重试次数，少一些以加快速度
 
 
