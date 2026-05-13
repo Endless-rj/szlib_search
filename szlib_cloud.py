@@ -120,20 +120,26 @@ def http_get(url, timeout=REQUEST_TIMEOUT, max_retries=MAX_RETRIES):
 #  搜索逻辑
 # ============================================================
 def search_books_api(keyword):
+    """搜索图书API，返回 (books_list, numFound)"""
     url = SEARCH_API + "&v_index=title&v_value=" + urllib.parse.quote(keyword)
     result = http_get(url)
     if not result:
-        return []
+        return [], 0
     books = []
+    num_found = 0
     if isinstance(result, dict):
         data = result.get("data", [])
         if isinstance(data, list):
             books = data
         elif isinstance(data, dict):
-            books = data.get("list", data.get("books", data.get("result", [])))
+            # API 实际返回格式: {"data": {"numFound": N, "docs": [...]}}
+            num_found = data.get("numFound", 0)
+            books = data.get("docs", data.get("list", data.get("books", data.get("result", []))))
             if isinstance(books, dict):
                 books = books.get("list", [])
-    return books if isinstance(books, list) else []
+    if not isinstance(books, list):
+        books = []
+    return books, num_found
 
 
 def fetch_holdings(tablename, recordid):
@@ -245,7 +251,7 @@ tasks = {}
 def run_search(book_name, task):
     try:
         task.send_progress("search", f"正在搜索《{book_name}》...", 10)
-        books = search_books_api(book_name)
+        books, num_found = search_books_api(book_name)
 
         if not books:
             task.send_progress("done", "搜索完成，未找到结果", 100)
@@ -253,11 +259,12 @@ def run_search(book_name, task):
             return
 
         total = len(books)
-        task.send_progress("count", f"找到 {total} 条结果，正在获取馆藏...", 20)
+        task.send_progress("count", f"找到 {num_found} 条结果（本次显示{total}条），正在获取馆藏...", 20)
 
         all_holdings = []
         for i, book in enumerate(books):
-            title = book.get("title", book.get("u_title", f"第{i+1}项"))
+            # u_title 包含完整标题（如"红楼梦/(清)曹雪芹著"），ptitle 是短标题可能截断
+            title = book.get("u_title", book.get("ptitle", book.get("title", f"第{i+1}项")))
             tablename = book.get("tablename", "bibliosm")
             recordid = book.get("recordid", 0)
 
@@ -275,7 +282,7 @@ def run_search(book_name, task):
 
         task.send_progress("done", "搜索完成！", 100)
         task.send_done({
-            "total": total,
+            "total": num_found if num_found else total,
             "book_count": total,
             "libraries": grouped,
         })
