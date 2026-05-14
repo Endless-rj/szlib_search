@@ -303,6 +303,7 @@ def run_search(book_name, task):
             holdings = []
             if tablename and recordid:
                 try:
+                    print(f"  >>{i}: {tablename} of {recordid}")
                     holdings = fetch_holdings(tablename, recordid)
                 except Exception as e:
                     print(f"  获取《{title}》馆藏异常: {e}")
