@@ -160,6 +160,7 @@ def search_books_api(keyword):
 
 def fetch_holdings(tablename, recordid):
     url = f"{HOLDING_API}?metaTable={tablename}&metaId={recordid}&library=all&client_id=t1"
+    print(f"  >> {tablename} of {recordid}")
     # 馆藏请求用更短的超时和更少的重试，避免单个失败的请求拖慢整个搜索
     api_data = http_get(url, timeout=HOLDINGS_TIMEOUT, max_retries=HOLDINGS_RETRIES)
 #    if not api_data:
@@ -303,7 +304,6 @@ def run_search(book_name, task):
             holdings = []
             if tablename and recordid:
                 try:
-                    print(f"  >>{i}: {tablename} of {recordid}")
                     holdings = fetch_holdings(tablename, recordid)
                 except Exception as e:
                     print(f"  获取《{title}》馆藏异常: {e}")
