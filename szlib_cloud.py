@@ -64,10 +64,10 @@ HEADERS_TEMPLATE = {
 # 重试配置
 MAX_RETRIES = 10
 # RETRY_DELAYS = [2, 5, 10]  # 每次重试的等待秒数
-REQUEST_TIMEOUT = 30  # 单次请求超时（秒），有代理后不需要60秒
-HOLDINGS_TIMEOUT = 5  # 15 馆藏请求超时（秒），比搜索短
+REQUEST_TIMEOUT = 10  # 单次请求超时（秒），有代理后不需要60秒
+HOLDINGS_TIMEOUT = 4  # 馆藏请求超时（秒），比搜索短
 HOLDINGS_RETRIES = 1  # 馆藏请求重试次数，少一些以加快速度
-
+last_agent = len(USER_AGENTS)
 
 # ============================================================
 #  HTTP 工具（带重试）
@@ -76,8 +76,11 @@ def http_get(url, timeout=REQUEST_TIMEOUT, max_retries=MAX_RETRIES):
     """带重试和指数退避的 HTTP GET 请求"""
 
     for attempt in range(max_retries):
-        # 轮换 User-Agent
-        ua = USER_AGENTS[attempt % len(USER_AGENTS)]
+        if last_agent >= len(USER_AGENTS) :
+            # 轮换 User-Agent
+            ua = USER_AGENTS[attempt % len(USER_AGENTS)]
+        else :
+            ua = last_agent
         headers = {**HEADERS_TEMPLATE, "User-Agent": ua}
 
         req = urllib.request.Request(url, headers=headers)
@@ -95,6 +98,7 @@ def http_get(url, timeout=REQUEST_TIMEOUT, max_retries=MAX_RETRIES):
                     if resp.headers.get('Content-Encoding') == 'gzip':
                         import gzip
                         data = gzip.decompress(data)
+                    last_agent = attempt
                     return json.loads(data.decode("utf-8"))
         except urllib.error.HTTPError as e:
             print(f"  HTTP {e.code} 错误 (尝试 {attempt+1}/{max_retries}): {e.reason}")
@@ -156,15 +160,17 @@ def search_books_api(keyword):
 def fetch_holdings(tablename, recordid):
     url = f"{HOLDING_API}?metaTable={tablename}&metaId={recordid}&library=all&client_id=t1"
     # 馆藏请求用更短的超时和更少的重试，避免单个失败的请求拖慢整个搜索
-    api_data = http_get(url, timeout=HOLDINGS_TIMEOUT, max_retries=HOLDINGS_RETRIES)
-    if not api_data:
-        print(f"  retry...1")
+#    api_data = http_get(url, timeout=HOLDINGS_TIMEOUT, max_retries=HOLDINGS_RETRIES)
+#    if not api_data:
+#        return []
+    for retry in range(5):
         api_data = http_get(url, timeout=HOLDINGS_TIMEOUT, max_retries=HOLDINGS_RETRIES)
         if not api_data:
-            print(f"  retry...2")
-            api_data = http_get(url, timeout=HOLDINGS_TIMEOUT, max_retries=HOLDINGS_RETRIES)
-            if not api_data:
-                return []
+            print(f"  retry...{retry}")
+        else:
+            break
+    if not api_data:
+        return []
     return parse_holdings(api_data)
 
 
@@ -257,14 +263,10 @@ class SearchTask:
         self.latest_progress = {"stage": "done", "message": "搜索完成！", "percent": 100}
 
     def send_error(self, error):
-        self.results = error
-        self.status = "done"
-        self.progress_queue.put({"type": "done", "results": error})
-        self.latest_progress = {"stage": "done", "message": "搜索完成！", "percent": 100}
-#        self.error = error
-#        self.status = "error"
-#        self.progress_queue.put({"type": "error", "error": error})
-#        self.latest_progress = {"stage": "error", "message": error, "percent": 0}
+        self.error = error
+        self.status = "error"
+        self.progress_queue.put({"type": "error", "error": error})
+        self.latest_progress = {"stage": "error", "message": error, "percent": 0}
 
 
 tasks = {}
@@ -272,6 +274,7 @@ tasks = {}
 
 def run_search(book_name, task):
     try:
+        last_agent = len(USER_AGENTS)
         task.send_progress("search", f"正在搜索《{book_name}》...", 10)
         books, num_found = search_books_api(book_name)
 
@@ -322,21 +325,8 @@ def run_search(book_name, task):
         })
 
     except Exception as e:
-#        task.send_error(f"搜索出错: {str(e)}")
-        task.send_progress("group", "正在整理结果...", 95)
-        grouped = group_by_library(all_holdings)
+        task.send_error(f"搜索出错: {str(e)}")
 
-        # 如果有部分失败，在完成消息中提示
-        done_msg = "搜索完成！"
-        if failed_count > 0:
-            done_msg = f"搜索完成（{failed_count}本馆藏获取失败，已跳过）"
-
-        task.send_progress("done", done_msg, 100)
-        task.send_done({
-            "total": num_found if num_found else total,
-            "book_count": total,
-            "libraries": grouped,
-        })
 
 # ============================================================
 #  内嵌 HTML 模板
