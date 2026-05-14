@@ -74,13 +74,13 @@ last_agent = len(USER_AGENTS)
 # ============================================================
 def http_get(url, timeout=REQUEST_TIMEOUT, max_retries=MAX_RETRIES):
     """带重试和指数退避的 HTTP GET 请求"""
-
+    global last_agent
     for attempt in range(max_retries):
         if last_agent >= len(USER_AGENTS) :
             # 轮换 User-Agent
             ua = USER_AGENTS[attempt % len(USER_AGENTS)]
         else :
-            ua = last_agent
+            ua = USER_AGENTS[last_agent % len(USER_AGENTS)]
         headers = {**HEADERS_TEMPLATE, "User-Agent": ua}
 
         req = urllib.request.Request(url, headers=headers)
@@ -98,7 +98,7 @@ def http_get(url, timeout=REQUEST_TIMEOUT, max_retries=MAX_RETRIES):
                     if resp.headers.get('Content-Encoding') == 'gzip':
                         import gzip
                         data = gzip.decompress(data)
-                    last_agent = attempt
+                    last_agent = attempt % len(USER_AGENTS)
                     return json.loads(data.decode("utf-8"))
         except urllib.error.HTTPError as e:
             print(f"  HTTP {e.code} 错误 (尝试 {attempt+1}/{max_retries}): {e.reason}")
@@ -273,6 +273,7 @@ tasks = {}
 
 
 def run_search(book_name, task):
+    global last_agent
     try:
         last_agent = len(USER_AGENTS)
         task.send_progress("search", f"正在搜索《{book_name}》...", 10)
