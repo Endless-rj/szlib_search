@@ -98,7 +98,8 @@ def http_get(url, timeout=REQUEST_TIMEOUT, max_retries=MAX_RETRIES):
                     if resp.headers.get('Content-Encoding') == 'gzip':
                         import gzip
                         data = gzip.decompress(data)
-                    last_agent = attempt % len(USER_AGENTS)
+                    if last_agent >= len(USER_AGENTS) :
+                        last_agent = attempt % len(USER_AGENTS)
                     return json.loads(data.decode("utf-8"))
         except urllib.error.HTTPError as e:
             print(f"  HTTP {e.code} 错误 (尝试 {attempt+1}/{max_retries}): {e.reason}")
